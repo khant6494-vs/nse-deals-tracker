@@ -29,7 +29,6 @@ __pycache__/
 cookies.txt
 *_output.txt
 
-# Database and Environment
+# Environment (DB credentials). Database data lives in the nse_mysql_data Docker volume.
 .env
-db/
 

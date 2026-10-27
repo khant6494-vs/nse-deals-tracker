@@ -15,9 +15,10 @@ docker-compose up -d
 This will start the `nse-mysql` container in the background.
 
 ## Database Initialization
-The `docker-compose.yml` file maps the local `db/` directory as a Docker volume. 
-- **Data Persistence**: All SQL data is saved safely in the `db/` folder on your machine.
-- **Git Ignore**: The `db/` folder and `.env` file have been explicitly added to `.gitignore` to prevent database data or passwords from being pushed to GitHub.
+- **Schema**: On first start, `docker-compose.yml` mounts `db/schema.sql` into the container's init directory, which creates the `deals` table automatically.
+- **Seeding**: Load the bundled dataset with `python db/seed_from_json.py`. It uses `INSERT IGNORE`, so re-running it is safe.
+- **Data Persistence**: All SQL data is stored in the `nse_mysql_data` Docker volume, so it survives container restarts. `docker compose down -v` deletes it.
+- **Git Ignore**: The `.env` file is gitignored so passwords are never pushed. The `db/` folder holds only code (`pool.js`, `schema.sql`, `seed_from_json.py`) and is committed.
 
 ## Connection Credentials
 The backend reads from a local `.env` file to connect to the database. Ensure your `.env` contains:
