@@ -38,9 +38,10 @@ The tracker provides deep transparency into institutional trading behavior, brea
 ---
 
 ## 🛠️ Tech Stack
-- **Frontend**: React.js, Vite, Vanilla CSS 
+- **Frontend**: React.js, Vite, Vanilla CSS
 - **Backend / API**: Express.js, Node.js
-- **Data Extractor**: Python (`requests`, `beautifulsoup`)
+- **Database**: MySQL 8 (via Docker Compose)
+- **Data Extractor**: Python (`nsepythonserver`, `mysql-connector-python`)
 
 ---
 
@@ -48,29 +49,71 @@ The tracker provides deep transparency into institutional trading behavior, brea
 
 ### Requirements
 You'll need the following installed on your machine:
-- [Node.js](https://nodejs.org/en/) (v16+)
-- [Python 3+](https://www.python.org/downloads/) (for the underlying scraper/merge utilities)
+- [Node.js](https://nodejs.org/en/) (v20+)
+- [Python 3+](https://www.python.org/downloads/) (for the seed, scraper and CSV-merge scripts)
+- [Docker](https://docs.docker.com/get-docker/) with Docker Compose (for MySQL), **or** any MySQL 8 / MariaDB server you run yourself
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/vamsi008/nse-deals-tracker.git
+git clone https://github.com/khant6494-vs/nse-deals-tracker.git
 cd nse-deals-tracker
 ```
 
 ### 2. Install dependencies
-Install the required packages for both the Vite frontend and Express backend.
 ```bash
 npm install
+pip install mysql-connector-python python-dotenv nsepythonserver
 ```
 
-### 3. Start the application
-The project comes wired with a `concurrently` dev script. This will spin up the Express API server on `:3001` and the Vite React server on `:5173` simultaneously.
+### 3. Start MySQL
+```bash
+docker compose up -d
+```
+This starts the `nse-mysql` container with database `nse_deals` and user `nse_user` / `nse_pass`. On first start it creates the `deals` table from `db/schema.sql`.
+
+> Using your own MySQL instead? Create the database and user, then load the schema:
+> `mysql -u nse_user -p nse_deals < db/schema.sql`
+
+### 4. Configure credentials (optional)
+The app defaults to the credentials in `docker-compose.yml`. To point it elsewhere, create a `.env` file in the project root (it's gitignored):
+```env
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=nse_user
+DB_PASSWORD=nse_pass
+DB_NAME=nse_deals
+```
+
+### 5. Load the bundled dataset
+`public/deals.json` contains about 48k bulk, block and short-sell deals (Apr 2024 – May 2026). Load them into MySQL:
+```bash
+python db/seed_from_json.py
+```
+It's safe to re-run, because duplicates are skipped. After this, use the **⟳ Refresh** button in the app to fetch newer deals from NSE, or the **Bulk CSV / Block CSV** buttons to merge NSE CSV exports.
+
+### 6. Start the application
+The `concurrently` dev script starts the Express API server on `:3001` and the Vite React server on `:5173` together.
 ```bash
 npm run dev
 ```
 
-### 4. Access the tracker
+### 7. Access the tracker
 Open your browser and navigate to the local Vite URL output by the terminal.
 ```
 http://localhost:5173
 ```
+
+---
+
+## 📁 Project Layout
+| Path | Purpose |
+|---|---|
+| `server.js` | Express API: dashboard, leaderboard, reversal alerts, conviction scoring, client and script portfolios |
+| `src/App.jsx` | React dashboard UI |
+| `db/pool.js` | Shared MySQL connection pool (reads `.env`) |
+| `db/schema.sql` | `deals` table definition |
+| `db/seed_from_json.py` | Loads `public/deals.json` into MySQL |
+| `fetch_nse_real.py` | Incremental fetch of new deals from NSE (run by **Refresh**) |
+| `merge_uploaded_csv.py` | Merges an uploaded NSE CSV export into MySQL |
+
+See [DATABASE_GUIDE.md](./DATABASE_GUIDE.md) for more on managing the database.
